@@ -3,6 +3,8 @@ var server = new StellarSdk.Server('https://horizon.stellar.org');
 
 var levelup = require('levelup');
 var leveldown = require('leveldown');
+var gmailSend = require('gmail-send');
+var credentials = require('./credentials.json');
 
 var sputnikAccount = 'GCS4MDRT7DEOZ6VRVS72J56D5E6XLAGU4G37ZLOVGUQPCOXZTKWIX5LO';
 // 1) Create our store
@@ -17,6 +19,15 @@ var sputnikTxHandler = function (txResponse) {
     }
     var email = '';
     if (txResponse.memo_type !== 'text') {
+        return;
+    }
+    if (txResponse.memo === 'STOP') {
+        delete localCache[source_account];
+        console.log("deleting "+ source_account);
+        db.del(source_account, function (err) {
+            if (err) console.log('error deleting key '+source_account);
+            // handle I/O or other error
+        });
         return;
     }
     email = txResponse.memo.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+)/gi)[0];
@@ -47,9 +58,18 @@ function sendEmail(email, tx_from, tx_amount, tx_asset) {
     if (asset === 'native') {
         asset = "Lumens";
     }
-    var text = "You have received "+ tx_amount + ' of ' + asset + " from " + tx_from;
+    var subject = "You have received "+ tx_amount + ' of ' + asset + " from " + tx_from;
     console.log("send to: "+ email);
-    console.log(text);
+    console.log(subject);
+
+    gmailSend({
+        user: credentials.user,                  // Your GMail account used to send emails
+        pass: credentials.pass,                  // Application-specific password
+        to:   email,
+        subject: subject,
+        text:    'Thanks for using sputnik, to unsubscribe, please send a payment transaction (can be as small as you like) with the memo STOP to GCS4MDRT7DEOZ6VRVS72J56D5E6XLAGU4G37ZLOVGUQPCOXZTKWIX5LO',
+    })();
+
 }
 
 var paymentTxHandler = function (txResponse) {
@@ -83,3 +103,5 @@ var paymentStream = server.operations()
     .stream({
         onmessage: paymentTxHandler
     })
+
+
