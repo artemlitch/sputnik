@@ -6,22 +6,9 @@ var leveldown = require('leveldown');
 
 var sputnikAccount = 'GCS4MDRT7DEOZ6VRVS72J56D5E6XLAGU4G37ZLOVGUQPCOXZTKWIX5LO';
 // 1) Create our store
-var db = levelup(leveldown('./mydb'))
+var db = levelup(leveldown('./mydb'));
 
-var localCache = {}
-
-// 2) Put a key & value
-db.put('name', 'levelup', function (err) {
-    if (err) return console.log('Ooops!', err) // some kind of I/O error
-
-    // 3) Fetch by key
-    db.get('name', function (err, value) {
-        if (err) return console.log('Ooops!', err) // likely the key was not found
-
-        // Ta da!
-        console.log('name=' + value)
-    })
-})
+var localCache = {};
 
 var sputnikTxHandler = function (txResponse) {
     var source_account = txResponse.source_account;
@@ -40,7 +27,7 @@ var sputnikTxHandler = function (txResponse) {
         var operations = responses._embedded.records;
         var amount = 0;
         for (var i = 0; i<operations.length; i++) {
-            if (operations[i].type === 'payment') {
+            if (operations[i].type === 'payment' && operations[i].asset_type === 'native') {
                 amount += operations[i].amount;
             }
         }
@@ -63,8 +50,8 @@ function sendEmail(email, tx_from, tx_amount, tx_asset) {
     var text = "You have received "+ tx_amount + ' of ' + asset + " from " + tx_from;
     console.log("send to: "+ email);
     console.log(text);
-
 }
+
 var paymentTxHandler = function (txResponse) {
     if (txResponse.type !== 'payment') {
         return;
@@ -74,13 +61,13 @@ var paymentTxHandler = function (txResponse) {
     var email = localCache[watched_account];
     if (email === undefined) {
         db.get(watched_account, function (err, email) {
-            if (err) return console.log('email does not exist');
+            if (err) return;
             sendEmail(email, txResponse.from, txResponse.amount, txResponse.asset_type);
         })
     } else {
         sendEmail(email, txResponse.from, txResponse.amount, txResponse.asset_type);
     }
-}
+};
 
 console.log("watching for transactions to sputnik");
 var sputnikStream = server.transactions()
