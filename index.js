@@ -14,10 +14,10 @@ var localCache = {};
 
 var sputnikTxHandler = function (txResponse) {
     var source_account = txResponse.source_account;
+    console.log("got a sputnik TX");
     if (source_account === sputnikAccount) {
         return;
     }
-    var email = '';
     if (txResponse.memo_type !== 'text') {
         return;
     }
@@ -30,28 +30,18 @@ var sputnikTxHandler = function (txResponse) {
         });
         return;
     }
-    email = txResponse.memo.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+)/gi)[0];
-
+    var emailMatch = txResponse.memo.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+)/gi);
+    if (emailMatch === null) {
+        return;
+    }
+    var email = emailMatch[0];
     console.log("Check if they have email: " + email);
     console.log("whats the account to watch?: "+source_account);
-    txResponse.operations().then(function (responses) {
-        var operations = responses._embedded.records;
-        var amount = 0;
-        for (var i = 0; i<operations.length; i++) {
-            if (operations[i].type === 'payment' && operations[i].asset_type === 'native') {
-                amount += operations[i].amount;
-            }
-        }
-        console.log("Did they deposit at least 3 lumens?");
-        console.log(amount);
-        if (amount >= 3.0) {
-            localCache[source_account] = email;
-            db.put(source_account, email, function (err) {
-                if (err) return console.log('Ooops!', err) // some kind of I/O error
-                console.log("saved email")
-            })
-        }
-    });
+    localCache[source_account] = email;
+    db.put(source_account, email, function (err) {
+        if (err) return console.log('Ooops!', err) // some kind of I/O error
+        console.log("saved email")
+    })
 };
 function sendEmail(email, tx_from, tx_amount, tx_asset) {
     var asset = tx_asset;
