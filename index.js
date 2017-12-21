@@ -22,13 +22,16 @@ var sputnikTxHandler = function (txResponse) {
         return;
     }
     if (txResponse.memo === 'STOP') {
-        delete localCache[source_account];
-        console.log("deleting "+ source_account);
-        db.del(source_account, function (err) {
-            if (err) console.log('error deleting key '+source_account);
-            // handle I/O or other error
-        });
-        return;
+        db.get(source_account, function (err, email) {
+            if (err) return;
+            db.del(source_account, function (err) {
+                if (err) console.log('error deleting key '+source_account);
+                // handle I/O or other error
+                console.log("deleting "+ source_account);
+                sendDeleteEmail(email, source_account);
+                delete localCache[source_account];
+            });
+        })
     }
     var emailMatch = txResponse.memo.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+)/gi);
     if (emailMatch === null) {
@@ -40,15 +43,23 @@ var sputnikTxHandler = function (txResponse) {
     localCache[source_account] = email;
     db.put(source_account, email, function (err) {
         if (err) return console.log('Ooops!', err) // some kind of I/O error
-        console.log("saved email")
+        console.log("saved email");
+        sendConfirmEmail(email, source_account);
     })
 };
-function sendEmail(email, tx_from, tx_amount, tx_asset) {
-    var asset = tx_asset;
-    if (asset === 'native') {
-        asset = "Lumens";
-    }
-    var subject = "You have received "+ tx_amount + ' of ' + asset + " from " + tx_from;
+function sendConfirmEmail(email, deposit_account) {
+    var subject = "You have subscribed to Sputnik!";
+
+    gmailSend({
+        user: credentials.user,                  // Your GMail account used to send emails
+        pass: credentials.pass,                  // Application-specific password
+        to:   email,
+        subject: subject,
+        text: 'Thanks for subscribing!\nYou will be emailed every time you receive a deposit to\n'+ deposit_account +'.\nTo unsubscribe, please send a payment transaction (can be as small as you like) with the memo STOP to GCS4MDRT7DEOZ6VRVS72J56D5E6XLAGU4G37ZLOVGUQPCOXZTKWIX5LO',
+    })();
+}
+function sendDeleteEmail(email, source_account) {
+    var subject = "You have unsubscribed from sputnik.";
     console.log("send to: "+ email);
     console.log(subject);
 
@@ -57,7 +68,24 @@ function sendEmail(email, tx_from, tx_amount, tx_asset) {
         pass: credentials.pass,                  // Application-specific password
         to:   email,
         subject: subject,
-        text:    'Thanks for using sputnik, to unsubscribe, please send a payment transaction (can be as small as you like) with the memo STOP to GCS4MDRT7DEOZ6VRVS72J56D5E6XLAGU4G37ZLOVGUQPCOXZTKWIX5LO',
+        text:    'Sorry to see you go.\nYou will no longer be notified when you receive payments to ' + source_account,
+    })();
+}
+function sendEmail(email, tx_from, tx_amount, tx_asset) {
+    var asset = tx_asset;
+    if (asset === 'native') {
+        asset = "Lumens";
+    }
+    var subject = "You have received "+ tx_amount + ' ' + asset + " from " + tx_from;
+    console.log("send to: "+ email);
+    console.log(subject);
+
+    gmailSend({
+        user: credentials.user,                  // Your GMail account used to send emails
+        pass: credentials.pass,                  // Application-specific password
+        to:   email,
+        subject: subject,
+        text:    'Thanks for using sputnik.\nTo unsubscribe, please send a payment transaction (can be as small as you like) with the memo STOP to\n GCS4MDRT7DEOZ6VRVS72J56D5E6XLAGU4G37ZLOVGUQPCOXZTKWIX5LO',
     })();
 
 }
