@@ -10,9 +10,12 @@
     "start": "node index.js"
   },
   "dependencies": {
+    "ejs": "^2.5.7",
+    "fs": "0.0.1-security",
     "gmail-send": "^1.2.11",
     "leveldown": "^2.1.1",
     "levelup": "^2.0.1",
+    "path": "^0.12.7",
     "stellar-sdk": "^0.7.7"
   },
   "devDependencies": {},

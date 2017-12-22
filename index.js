@@ -5,13 +5,18 @@ var levelup = require('levelup');
 var leveldown = require('leveldown');
 var gmailSend = require('gmail-send');
 var credentials = require('./credentials.json');
-
+var FS = require('fs');
+var EJS = require('ejs');
+var path = require('path');
 var sputnikAccount = 'GCS4MDRT7DEOZ6VRVS72J56D5E6XLAGU4G37ZLOVGUQPCOXZTKWIX5LO';
 // 1) Create our store
 var db = levelup(leveldown('./mydb'));
 
 var localCache = {};
-
+function loadFile(filename) {
+    var filePath = path.join(__dirname, filename);
+    return String(FS.readFileSync(filePath));
+}
 var sputnikTxHandler = function (txResponse) {
     var source_account = txResponse.source_account;
     console.log("got a sputnik TX");
@@ -28,7 +33,7 @@ var sputnikTxHandler = function (txResponse) {
                 if (err) console.log('error deleting key '+source_account);
                 // handle I/O or other error
                 console.log("deleting "+ source_account);
-                sendDeleteEmail(email, source_account);
+                sendDeleteEmail(email);
                 delete localCache[source_account];
             });
         })
@@ -47,49 +52,60 @@ var sputnikTxHandler = function (txResponse) {
         sendConfirmEmail(email, source_account);
     })
 };
+var subEmail = loadFile('sub_email.ejs');
 function sendConfirmEmail(email, deposit_account) {
     var subject = "You have subscribed to Sputnik!";
 
+    var templateData = {
+        address: deposit_account,
+    };
+    var emailHtml = EJS.render(subEmail, templateData);
     gmailSend({
         user: credentials.user,                  // Your GMail account used to send emails
         pass: credentials.pass,                  // Application-specific password
         to:   email,
         subject: subject,
-        text: 'Thanks for subscribing!\nYou will be emailed every time you receive a deposit to\n'+ deposit_account +'.\nTo unsubscribe, please send a payment transaction (can be as small as you like) with the memo STOP to GCS4MDRT7DEOZ6VRVS72J56D5E6XLAGU4G37ZLOVGUQPCOXZTKWIX5LO',
+        html: emailHtml,
     })();
 }
-function sendDeleteEmail(email, source_account) {
+
+var unsubEmail = loadFile('unsub_email.ejs');
+function sendDeleteEmail(email) {
     var subject = "You have unsubscribed from sputnik.";
     console.log("send to: "+ email);
-    console.log(subject);
+    var emailHtml = EJS.render(unsubEmail, {});
 
     gmailSend({
         user: credentials.user,                  // Your GMail account used to send emails
         pass: credentials.pass,                  // Application-specific password
         to:   email,
         subject: subject,
-        text:    'Sorry to see you go.\nYou will no longer be notified when you receive payments to ' + source_account,
+        html: emailHtml,
     })();
 }
+var txEmail = loadFile('tx_email.ejs');
+
 function sendEmail(email, tx_from, tx_amount, tx_asset) {
-    var asset = tx_asset;
-    if (asset === 'native') {
-        asset = "Lumens";
+    if (tx_asset === 'native') {
+        tx_asset = "Lumens";
     }
-    var subject = "You have received "+ tx_amount + ' ' + asset + " from " + tx_from;
+    var templateData = {
+        amount: tx_amount,
+        asset_type: tx_asset,
+        address: tx_from,
+    };
+    var emailHtml = EJS.render(txEmail, templateData);
+    var subject = "You have received "+ tx_amount + ' ' + tx_asset;
     console.log("send to: "+ email);
-    console.log(subject);
-
     gmailSend({
         user: credentials.user,                  // Your GMail account used to send emails
         pass: credentials.pass,                  // Application-specific password
         to:   email,
         subject: subject,
-        text:    'Thanks for using sputnik.\nTo unsubscribe, please send a payment transaction (can be as small as you like) with the memo STOP to\n GCS4MDRT7DEOZ6VRVS72J56D5E6XLAGU4G37ZLOVGUQPCOXZTKWIX5LO',
+        html: emailHtml,
     })();
 
 }
-
 var paymentTxHandler = function (txResponse) {
     if (txResponse.type !== 'payment') {
         return;
