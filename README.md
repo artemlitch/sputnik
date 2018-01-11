@@ -5,7 +5,7 @@ Sputnik watches your Stellar Wallet and emails you when receive payments!
 
 ## How to use
 
-Send a transaction to the federated server 
+Send your email in the `MEMO_TEXT` of a transaction to the federated server 
 ```
 sputnik*devetics.com
 ```
@@ -14,7 +14,7 @@ or address:
 ```
 GCS4MDRT7DEOZ6VRVS72J56D5E6XLAGU4G37ZLOVGUQPCOXZTKWIX5LO
 ```
-With any stellar transaction (can be as small as you like), and your **email** in the **memo_text** field.
+With any stellar transaction (can be as small as you like), and Sputnik will register your email.  
 
 Here is an example using [stellar.org/account-viewer](https://www.stellar.org/account-viewer)
  
