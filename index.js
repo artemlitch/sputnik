@@ -113,13 +113,16 @@ var paymentTxHandler = function (txResponse) {
     var watched_account = txResponse.to;
     // check if source account exists in DB
     var email = localCache[watched_account];
+
     if (email === undefined) {
         db.get(watched_account, function (err, email) {
             if (err) return;
-            sendEmail(email, txResponse.from, txResponse.amount, txResponse.asset_type);
+            var amount = txResponse.amount;
+            sendEmail(email, txResponse.from, parseFloat(txResponse.amount), txResponse.asset_type);
         })
     } else {
-        sendEmail(email, txResponse.from, txResponse.amount, txResponse.asset_type);
+        console.log(txResponse.amount);
+        sendEmail(email, txResponse.from, parseFloat(txResponse.amount), txResponse.asset_type);
     }
 };
 
